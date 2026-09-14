@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Ranking - Mais Saúde VR</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0F172A; color: white; display: flex; flex-direction: column; align-items: center; padding: 40px; }
+    h1 { color: #38BDF8; font-size: 2.5em; margin-bottom: 20px; }
+    table { width: 80%; max-width: 600px; border-collapse: collapse; background: #1E293B; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    th, td { padding: 15px 20px; text-align: left; }
+    th { background-color: #0284C7; color: white; text-transform: uppercase; letter-spacing: 1px; }
+    tr:nth-child(even) { background-color: #334155; }
+    .rank { font-weight: bold; color: #FACC15; }
+  </style>
+</head>
+<body>
+
+  <h1>TOP 10 - Mais Saúde VR</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Nome</th>
+        <th>Pontuação</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboardBody">
+      <tr><td colspan="3">A carregar pontuações...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    const SUPABASE_URL = 'https://mjpjhomrpoduqszdewjc.supabase.co/rest/v1/';
+    const SUPABASE_KEY = 'sb_secret_ON-2FUoNfCY9yEbRvC1tFg_sCI7Gl5p';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function fetchLeaderboard() {
+      const { data, error } = await _supabase
+        .from('leaderboard')
+        .select('name, score')
+        .order('score', { ascending: false })
+        .limit(10);
+
+      if (error) { console.error(error); return; }
+
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = '';
+
+      data.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="rank">${index + 1}º</td>
+          <td>${row.name}</td>
+          <td>${row.score} pts</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Atualiza o ranking a cada 5 segundos no tablet/monitor
+    fetchLeaderboard();
+    setInterval(fetchLeaderboard, 5000);
+  </script>
+</body>
+</html>
