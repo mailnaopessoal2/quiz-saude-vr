@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Quiz Mais Saúde VR</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .vr-overlay { position: absolute; top: 20px; left: 20px; z-index: 999; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px; font-family: sans-serif; }
+    input, button { padding: 8px; margin-top: 5px; font-size: 16px; }
+  </style>
+</head>
+<body>
+
+  <!-- Ecrã inicial 2D para colocar o nome antes de entrar no VR -->
+  <div id="setup" class="vr-overlay">
+    <h2>Mais Saúde VR - Quiz</h2>
+    <label>Insira o seu Nome/Iniciais:</label><br>
+    <input type="text" id="playerName" maxlength="10" placeholder="Ex: R.A."><br><br>
+    <button onclick="startQuiz()">Iniciar no VR</button>
+  </div>
+
+  <script>
+    // Conexão ao Supabase (Substituir com as tuas chaves gratuitas do Supabase)
+    const SUPABASE_URL = 'https://mjpjhomrpoduqszdewjc.supabase.co/rest/v1/';
+    const SUPABASE_KEY = 'sb_secret_ON-2FUoNfCY9yEbRvC1tFg_sCI7Gl5p';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const questionBank = [
+      { q: "A pratica regular de atividade fisica reduz sintomas de depressao?", a: ["Sim, reduz significativamente", "Nao traz qualquer efeito", "Apenas afeta os musculos"], c: 0 },
+      { q: "Quantas horas de sono sao recomendadas para um adulto?", a: ["4 a 5 horas", "7 a 9 horas", "Mais de 11 horas"], c: 1 },
+      { q: "Qual o limite maximo diario de sal recomendado pela DGS?", a: ["5 gramas (1 colher cha)", "10 gramas", "15 gramas"], c: 0 },
+      { q: "Quantas porcoes diarias de fruta e vegetais sao recomendadas?", a: ["1 porcao", "Pelo menos 5 porcoes", "12 porcoes"], c: 1 },
+      { q: "Qual a gordura vegetal preferencial na Dieta Mediterranica?", a: ["Azeite", "Oleo de Palma", "Manteiga"], c: 0 },
+      { q: "A partir de que idade e recomendado o rastreio do cancro do colon?", a: ["30 anos", "50 anos", "70 anos"], c: 1 },
+      { q: "Que vacina ajuda a prevenir o cancro do colo do utero?", a: ["Vacina da Gripe", "Vacina do HPV", "Vacina Hepatite B"], c: 1 },
+      { q: "O consumo de tabaco esta ligado a que % de cancros do pulmao?", a: ["10% a 20%", "40% a 50%", "80% a 90%"], c: 2 },
+      { q: "Qual o exame recomendado para rastreio do cancro da mama?", a: ["Mamografia", "Radiografia do Torax", "Ecografia simples"], c: 0 },
+      { q: "A Linha SNS24 tem apoio psicologico 24h/dia?", a: ["Sim (Opcao Aconselhamento)", "Nao, apenas presencial", "Apenas durante o dia"], c: 0 }
+      // Podem ser adicionadas as restantes 10 perguntas na mesma estrutura
+    ];
+
+    let selectedQuestions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let playerName = "";
+
+    function startQuiz() {
+      const nameInput = document.getElementById('playerName').value.trim();
+      if(!nameInput) { alert("Por favor insira um nome!"); return; }
+      playerName = nameInput;
+      document.getElementById('setup').style.display = 'none';
+
+      // Sorteia 10 perguntas aleatórias
+      selectedQuestions = questionBank.sort(() => 0.5 - Math.random()).slice(0, 10);
+      showQuestion();
+    }
+
+    function showQuestion() {
+      if(currentIndex >= selectedQuestions.length) {
+        finishQuiz();
+        return;
+      }
+
+      const qData = selectedQuestions[currentIndex];
+      document.getElementById('qText').setAttribute('value', `Pergunta ${currentIndex + 1}/10:\n${qData.q}`);
+      
+      document.getElementById('opt0').setAttribute('value', `A) ${qData.a[0]}`);
+      document.getElementById('opt1').setAttribute('value', `B) ${qData.a[1]}`);
+      document.getElementById('opt2').setAttribute('value', `C) ${qData.a[2]}`);
+    }
+
+    function selectAnswer(optionIndex) {
+      const qData = selectedQuestions[currentIndex];
+      if(optionIndex === qData.c) {
+        score += 100;
+        document.getElementById('feedback').setAttribute('value', "CORRETO! (+100 pts)");
+        document.getElementById('feedback').setAttribute('color', "#00FF00");
+      } else {
+        document.getElementById('feedback').setAttribute('value', "INCORRETO!");
+        document.getElementById('feedback').setAttribute('color', "#FF0000");
+      }
+
+      setTimeout(() => {
+        document.getElementById('feedback').setAttribute('value', "");
+        currentIndex++;
+        showQuestion();
+      }, 1200);
+    }
+
+    async function finishQuiz() {
+      document.getElementById('quizPanel').setAttribute('visible', 'false');
+      document.getElementById('finalPanel').setAttribute('visible', 'true');
+      document.getElementById('finalScoreText').setAttribute('value', `Parabens ${playerName}!\nPontuacao Final: ${score} pontos`);
+
+      // Envia os resultados para a base de dados
+      await _supabase.from('leaderboard').insert([{ name: playerName, score: score }]);
+    }
+  </script>
+
+  <!-- Cena 3D WebXR -->
+  <a-scene background="color: #1A2B3C">
+    <a-entity id="rig" position="0 0 0">
+      <a-camera position="0 1.6 0">
+        <a-cursor color="#4CC3D9"></a-cursor>
+      </a-camera>
+    </a-entity>
+
+    <!-- Painel Principal do Quiz -->
+    <a-entity id="quizPanel" position="0 1.7 -2.5">
+      <a-plane width="3.5" height="2.2" color="#0F172A" opacity="0.9"></a-plane>
+      
+      <a-text id="qText" value="A carregar pergunta..." align="center" position="0 0.6 0.05" width="3" color="#FFFFFF"></a-text>
+      
+      <!-- Botão A -->
+      <a-plane position="0 0.2 0.05" width="3" height="0.3" color="#1E293B" class="clickable" onclick="selectAnswer(0)">
+        <a-text id="opt0" value="Opcao A" align="center" position="0 0 0.01" width="2.8" color="#60A5FA"></a-text>
+      </a-plane>
+
+      <!-- Botão B -->
+      <a-plane position="0 -0.2 0.05" width="3" height="0.3" color="#1E293B" class="clickable" onclick="selectAnswer(1)">
+        <a-text id="opt1" value="Opcao B" align="center" position="0 0 0.01" width="2.8" color="#60A5FA"></a-text>
+      </a-plane>
+
+      <!-- Botão C -->
+      <a-plane position="0 -0.6 0.05" width="3" height="0.3" color="#1E293B" class="clickable" onclick="selectAnswer(2)">
+        <a-text id="opt2" value="Opcao C" align="center" position="0 0 0.01" width="2.8" color="#60A5FA"></a-text>
+      </a-plane>
+
+      <a-text id="feedback" value="" align="center" position="0 -0.95 0.05" width="3"></a-text>
+    </a-entity>
+
+    <!-- Painel de Fim de Jogo -->
+    <a-entity id="finalPanel" position="0 1.7 -2.5" visible="false">
+      <a-plane width="3" height="1.5" color="#0F172A" opacity="0.9"></a-plane>
+      <a-text id="finalScoreText" value="" align="center" position="0 0.2 0.05" width="2.8" color="#34D399"></a-text>
+      <a-text value="O teu resultado foi guardado no Ranking!" align="center" position="0 -0.3 0.05" width="2.5" color="#FFFFFF"></a-text>
+    </a-entity>
+  </a-scene>
+
+</body>
+</html>
